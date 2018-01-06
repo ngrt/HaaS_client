@@ -1,0 +1,26 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Register</h2>
+  {% for field, errors in registerUserForm.errors.items() %}
+    <div class="alert alert-danger">
+        {{ registerUserForm[field].label }}: {{ ', '.join(errors) }}
+    </div>
+{% endfor %}
+<form method="POST" action="/register">
+    {{ registerUserForm.csrf_token }}
+    <div class="form-group">
+        {{ registerUserForm.email.label }} {{ registerUserForm.email(class_="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ registerUserForm.name.label }} {{ registerUserForm.name(class_="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ registerUserForm.password.label }} {{ registerUserForm.password(class_="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ registerUserForm.password_confirmation.label }} {{ registerUserForm.password_confirmation(class_="form-control") }}
+    </div>
+
+    <input type="submit" value="Register" class="btn btn-primary">
+</form>
+{% endblock %}
