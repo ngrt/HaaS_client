@@ -10,7 +10,7 @@ import jwt
 
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'thisissecret'
+app.config['SECRET_KEY'] = 'sealdarethebest'
 
 
 class RegisterUserForm(Form):
@@ -24,7 +24,6 @@ class RegisterUserForm(Form):
 class LoginForm(Form):
     email = StringField('Email', validators=[InputRequired()])
     password = PasswordField('Password', validators=[InputRequired()])
-
 
 def require_token(func):
     @wraps(func)
@@ -51,6 +50,7 @@ def inject_isloggedin():
 
     try:
         data = jwt.decode(session['token'], app.config['SECRET_KEY'])
+        print(data)
         headers = {'x-access-token': session['token']}
         r = requests.get('http://127.0.0.1:5000/user/{}'.format(data['public_id']), headers=headers)
         current_user = json.loads(r.text)['user']
@@ -69,9 +69,11 @@ def index():
 def login():
     loginForm = LoginForm()
     if loginForm.validate_on_submit():
-        r = requests.get('http://localhost:5000/login', auth=HTTPBasicAuth(loginForm.email.data, loginForm.password.data))
-
-        if json.loads(r.text)['token']:
+        r = requests.get('http://127.0.0.1:5000/login', auth=HTTPBasicAuth(loginForm.email.data, loginForm.password.data))
+        if r.text == "Could not verify":
+            flash(r.text)
+        elif json.loads(r.text)['token']:
+            print(json.loads(r.text)['token'])
             session['token'] = json.loads(r.text)['token']
             flash("You are logged in")
             return redirect(url_for('index'))
@@ -79,7 +81,7 @@ def login():
     return render_template('login.html', loginForm=loginForm)
 
 @app.route('/logout', methods=['GET', 'POST'])
-#@require_token
+@require_token
 def logout(current_user):
     session.pop('token', None)
     return redirect(url_for('index'))
