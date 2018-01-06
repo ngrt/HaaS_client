@@ -1,16 +1,17 @@
 from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
 import requests
+from requests.auth import HTTPBasicAuth
 import json
 from wtforms import *
 from wtforms.validators import *
 from flask_wtf import *
+from functools import wraps
+import jwt
+
 
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'thisissecret'
 
-class CreateArticleForm(Form):
-    title = StringField('Title', [InputRequired()])
-    body = TextAreaField('Text', [InputRequired()])
 
 class RegisterUserForm(Form):
     email = StringField('Email', [InputRequired()])
@@ -25,18 +26,50 @@ class LoginForm(Form):
     password = PasswordField('Password', validators=[InputRequired()])
 
 
+def require_token(func):
+    @wraps(func)
+    def check_token(*args, **kwargs):
+        if 'token' not in session:
+            return jsonify({'message': 'Not Authorized'}), 401
+
+        try:
+            data = jwt.decode(session['token'], app.config['SECRET_KEY'])
+            headers = {'x-access-token': session['token']}
+            r = requests.get('http://127.0.0.1:5000/user/{}'.format(data['public_id']), headers=headers)
+            current_user = json.loads(r.text)['user']
+        except:
+            return jsonify({'message': 'Not Authorized'}), 401
+
+        return func(current_user, *args, **kwargs)
+
+    return check_token
+
+@app.context_processor
+def inject_isloggedin():
+    if 'token' not in session:
+        return {'isloggedin' : False}
+
+    try:
+        data = jwt.decode(session['token'], app.config['SECRET_KEY'])
+        headers = {'x-access-token': session['token']}
+        r = requests.get('http://127.0.0.1:5000/user/{}'.format(data['public_id']), headers=headers)
+        current_user = json.loads(r.text)['user']
+        print(current_user['id'])
+        return {'isloggedin' : True, 'current_user' : current_user}
+    except:
+        return {'isloggedin' : False}
+
+
+
 @app.route('/')
 def index():
-    #r = requests.get('http://127.0.0.1:5000/article')
-    #articles = json.loads(r.text)['articles']
+    return render_template('index.html')
 
-    return render_template('index.html', articles=[])
-
-@app.route('/login')
+@app.route('/login', methods=['GET', 'POST'])
 def login():
     loginForm = LoginForm()
     if loginForm.validate_on_submit():
-        r = requests.get('http://127.0.0.1:5000/login', auth=HTTPBasicAuth(loginForm.email.data, loginForm.password.data))
+        r = requests.get('http://localhost:5000/login', auth=HTTPBasicAuth(loginForm.email.data, loginForm.password.data))
 
         if json.loads(r.text)['token']:
             session['token'] = json.loads(r.text)['token']
@@ -54,6 +87,13 @@ def logout(current_user):
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     registerUserForm = RegisterUserForm()
+    if registerUserForm.validate_on_submit():
+        payload = {'email': registerUserForm.email.data, 'name': registerUserForm.name.data, 'password': registerUserForm.password.data}
+
+        r = requests.post('http://127.0.0.1:5000/register', json=payload)
+        message = json.loads(r.text)['message']
+        flash(message)
+        return redirect(url_for('index'))
     return render_template('register.html', registerUserForm=registerUserForm)
 
 if __name__ == '__main__':
