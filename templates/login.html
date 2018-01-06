@@ -1,0 +1,25 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h2>Login</h2>
+
+  {% for field, errors in loginForm.errors.items() %}
+    <div class="alert alert-danger">
+        {{ loginForm[field].label }}: {{ ', '.join(errors) }}
+    </div>
+{% endfor %}
+{% if error %}
+    <p class=error><strong>Error:</strong> {{ error }}
+{% endif %}
+
+<form method="POST" action="/login">
+    {{ loginForm.csrf_token }}
+    <div class="form-group">
+        {{ loginForm.email.label }} {{ loginForm.email(class_="form-control") }}
+    </div>
+    <div class="form-group">
+        {{ loginForm.password.label }} {{ loginForm.password(class_="form-control") }}
+    </div>
+    <input type="submit" value="Connect" class="btn btn-primary">
+</form>
+<p>Still have not your account ? <a href="{{ url_for("register") }}">Register here</a></p>
+{% endblock %}
