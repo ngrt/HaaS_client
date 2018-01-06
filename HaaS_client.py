@@ -26,8 +26,8 @@ class LoginForm(Form):
 
 class HashForm(Form):
     data = StringField('Text to hash', validators=[InputRequired()])
-    algo = SelectField('Choose a method', choices=[('md5', 'md5'), ('sha1', 'sha1'), ('sha255', 'sha255')], validators=[InputRequired()])
-    iteration = StringField('Number of iteration', validators=[InputRequired()])
+    algo = SelectField('Choose a method', choices=[('md5', 'md5'), ('sha1', 'sha1'), ('sha256', 'sha256')], validators=[InputRequired()])
+    iteration = IntegerField('Number of iteration', validators=[InputRequired()])
 
 #decorator to require the token of the API and return the current_user information
 def require_token(func):
