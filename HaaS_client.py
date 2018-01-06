@@ -8,11 +8,10 @@ from flask_wtf import *
 from functools import wraps
 import jwt
 
-
 app = Flask(__name__)
 app.config['SECRET_KEY'] = 'sealdarethebest'
 
-
+#class of WTForms forms
 class RegisterUserForm(Form):
     email = StringField('Email', [InputRequired()])
     name = StringField('Name', [InputRequired()])
@@ -25,6 +24,12 @@ class LoginForm(Form):
     email = StringField('Email', validators=[InputRequired()])
     password = PasswordField('Password', validators=[InputRequired()])
 
+class HashForm(Form):
+    data = StringField('Text to hash', validators=[InputRequired()])
+    algo = SelectField('Choose a method', choices=[('md5', 'md5'), ('sha1', 'sha1'), ('sha255', 'sha255')], validators=[InputRequired()])
+    iteration = StringField('Number of iteration', validators=[InputRequired()])
+
+#decorator to require the token of the API and return the current_user information
 def require_token(func):
     @wraps(func)
     def check_token(*args, **kwargs):
@@ -43,6 +48,8 @@ def require_token(func):
 
     return check_token
 
+
+#decorator check if the user is connected - accessible for all the views
 @app.context_processor
 def inject_isloggedin():
     if 'token' not in session:
@@ -50,21 +57,29 @@ def inject_isloggedin():
 
     try:
         data = jwt.decode(session['token'], app.config['SECRET_KEY'])
-        print(data)
         headers = {'x-access-token': session['token']}
         r = requests.get('http://127.0.0.1:5000/user/{}'.format(data['public_id']), headers=headers)
         current_user = json.loads(r.text)['user']
-        print(current_user['id'])
         return {'isloggedin' : True, 'current_user' : current_user}
     except:
         return {'isloggedin' : False}
 
-
-
-@app.route('/')
+#index route to hash a data
+@app.route('/', methods=['GET', 'POST'])
 def index():
-    return render_template('index.html')
+    hashForm = HashForm()
 
+    if hashForm.validate_on_submit():
+        payload = {'data': hashForm.data.data, 'algo': hashForm.algo.data, 'iteration': int(hashForm.iteration.data)}
+        headers = {'x-access-token': session['token']}
+        r = requests.post('http://127.0.0.1:5000/calculateHash', json=payload, headers=headers)
+        hash = "Your hash is {}".format(json.loads(r.text)['hash'])
+        flash(hash)
+        return redirect(url_for('index'))
+
+    return render_template('index.html', hashForm=hashForm)
+
+#login route
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     loginForm = LoginForm()
@@ -73,19 +88,20 @@ def login():
         if r.text == "Could not verify":
             flash(r.text)
         elif json.loads(r.text)['token']:
-            print(json.loads(r.text)['token'])
             session['token'] = json.loads(r.text)['token']
             flash("You are logged in")
             return redirect(url_for('index'))
 
     return render_template('login.html', loginForm=loginForm)
 
+#logout route
 @app.route('/logout', methods=['GET', 'POST'])
 @require_token
 def logout(current_user):
     session.pop('token', None)
     return redirect(url_for('index'))
 
+#register route
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     registerUserForm = RegisterUserForm()
